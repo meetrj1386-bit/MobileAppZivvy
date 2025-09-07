@@ -127,22 +127,48 @@ useEffect(() => {
 
 
 // Auto-scroll to today's day button
+
+
+// Auto-scroll to today's day button
+
+// Auto-scroll to today's day button
 const scrollViewRef = useRef(null);
 
 useEffect(() => {
-  // Auto-scroll to today's button when component mounts
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const todayIndex = days.indexOf(selectedDay);
-  
-  if (scrollViewRef.current && todayIndex !== -1) {
-    setTimeout(() => {
+  // Small delay to ensure the ScrollView is rendered
+  const timer = setTimeout(() => {
+    // Your day order in the scroll view
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Get today's day name
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = new Date().getDay();
+    const todayName = daysOfWeek[today];
+    
+    // Find index in your display order
+    const todayIndex = days.indexOf(todayName);
+    
+    console.log('Today is:', todayName, 'Index:', todayIndex);
+    
+    if (scrollViewRef.current && todayIndex !== -1) {
+      // Calculate scroll position
+      // dayButton width (85) + paddingHorizontal (24*2) + marginHorizontal (6*2) = ~145
+      const scrollPosition = todayIndex * 145;
+      
       scrollViewRef.current.scrollTo({
-        x: todayIndex * 100, // Approximate width of each day button
+        x: scrollPosition,
+        y: 0,
         animated: true
       });
-    }, 100);
-  }
+      
+      console.log('Scrolling to position:', scrollPosition);
+    }
+  }, 500); // Give time for component to mount
+  
+  return () => clearTimeout(timer);
 }, []);
+
+
 
 useEffect(() => {
   // Handle notification responses
