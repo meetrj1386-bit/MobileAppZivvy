@@ -176,59 +176,41 @@ export const scheduleTimeSlotReminders = async (schedule, formData, dayName) => 
   const dayExercises = schedule[dayName] || [];
   if (dayExercises.length === 0) return;
 
-  // Group exercises by time windows (within 2 hours = same slot)
-  const timeSlots = [];
-  let currentSlot = null;
-
-  dayExercises.forEach(exercise => {
-    const exerciseTime = parseInt(exercise.time.replace(':', ''));
-    
-    if (!currentSlot || exerciseTime - currentSlot.endTime > 200) { // 2+ hour gap
-      // Start new time slot
-      currentSlot = {
-        startTime: exercise.time,
-        endTime: exercise.time,
-        exercises: [exercise]
-      };
-      timeSlots.push(currentSlot);
-    } else {
-      // Add to current slot
-      currentSlot.endTime = exercise.time;
-      currentSlot.exercises.push(exercise);
-    }
-  });
-
-  // Schedule reminder for each time slot
   const reminderSettings = await AsyncStorage.getItem('reminderSettings');
   const settings = reminderSettings ? JSON.parse(reminderSettings) : { minutesBefore: 15 };
 
-  for (const slot of timeSlots) {
-    const [hour, minute] = slot.startTime.split(':');
-    const slotTime = new Date();
-    slotTime.setDate(slotTime.getDate() + 1); // Tomorrow
-    slotTime.setHours(parseInt(hour), parseInt(minute) - settings.minutesBefore, 0, 0);
-
-    const slotMessage = settings.gentleMode ? 
-      `Time to connect with ${formData.childFirstName}! ${slot.exercises.length} activities starting at ${slot.startTime}` :
-      `Therapy session at ${slot.startTime} - ${slot.exercises.length} exercises scheduled`;
+  for (const exercise of dayExercises) {
+    const [hour, minute] = exercise.time.split(':').map(Number);
+    
+    // Calculate reminder time properly
+    let totalMinutes = (hour * 60 + minute) - settings.minutesBefore;
+    
+    // Handle negative time (goes to previous day)
+    if (totalMinutes < 0) {
+      totalMinutes += 24 * 60;
+    }
+    
+    const reminderHour = Math.floor(totalMinutes / 60);
+    const reminderMin = totalMinutes % 60;
+    
+    const reminderTime = new Date();
+    reminderTime.setDate(reminderTime.getDate() + 1); // Tomorrow
+    reminderTime.setHours(reminderHour, reminderMin, 0, 0);
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: settings.gentleMode ? "Connection time approaching" : "Therapy reminder",
-        body: slotMessage,
+        title: `Reminder: ${exercise.exercise}`,
+        body: `Starting in ${settings.minutesBefore} minutes at ${exercise.time}`,
         data: { 
-          type: 'time_slot_reminder',
-          startTime: slot.startTime,
-          exerciseCount: slot.exercises.length
+          type: 'exercise_reminder',
+          exercise: exercise.exercise,
+          time: exercise.time
         }
       },
-      trigger: {
-        type: 'date',
-        date: slotTime
-      }
+      trigger: reminderTime
     });
-
-    console.log(`Time slot reminder scheduled: ${settings.minutesBefore} min before ${slot.startTime}`);
+    
+    console.log(`Scheduled reminder for ${exercise.exercise} at ${reminderHour}:${reminderMin}`);
   }
 };
 
@@ -236,13 +218,43 @@ export const scheduleEveningReflection = async (schedule, formData, dayName) => 
   const dayExercises = schedule[dayName] || [];
   if (dayExercises.length === 0) return;
 
-  // Find the last exercise of the day
+  // First, set up the category with buttons
+  await Notifications.setNotificationCategoryAsync('DAILY_CHECKIN', [
+    {
+      identifier: 'COMPLETED_ALL',
+      buttonTitle: '✅ Did all!',
+      options: { 
+        opensAppToForeground: false,
+        isDestructive: false,
+        isAuthenticationRequired: false 
+      }
+    },
+    {
+      identifier: 'COMPLETED_SOME', 
+      buttonTitle: '💪 Did some',
+      options: { 
+        opensAppToForeground: false,
+        isDestructive: false,
+        isAuthenticationRequired: false
+      }
+    },
+    {
+      identifier: 'MISSED',
+      buttonTitle: '❌ Missed today',
+      options: { 
+        opensAppToForeground: false,
+        isDestructive: true,
+        isAuthenticationRequired: false
+      }
+    }
+  ]);
+
   const lastExercise = dayExercises[dayExercises.length - 1];
-  const [lastHour, lastMin] = lastExercise.time.split(':');
+  const [lastHour, lastMin] = lastExercise.time.split(':').map(Number);
   
-  // Schedule reflection 1 hour after last exercise, but cap at 9 PM
-  let reflectionHour = parseInt(lastHour) + 1;
-  let reflectionMin = parseInt(lastMin);
+  // Schedule 1 hour after last exercise, cap at 9 PM
+  let reflectionHour = lastHour + 1;
+  let reflectionMin = lastMin;
   
   if (reflectionHour > 21) {
     reflectionHour = 21;
@@ -250,27 +262,23 @@ export const scheduleEveningReflection = async (schedule, formData, dayName) => 
   }
   
   const reflectionTime = new Date();
-  reflectionTime.setDate(reflectionTime.getDate() + 1); // Tomorrow
+  reflectionTime.setDate(reflectionTime.getDate() + 1);
   reflectionTime.setHours(reflectionHour, reflectionMin, 0, 0);
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "How did today feel?",
-      body: `Reflecting on therapy time with ${formData.childFirstName}`,
-      categoryIdentifier: 'DAILY_REFLECTION',
+      title: `How did therapy go with ${formData.childFirstName}?`,
+      body: "Quick check-in on today's progress",
+      categoryIdentifier: 'DAILY_CHECKIN',
       data: { 
-        type: 'evening_reflection',
-        day: dayName,
-        exerciseCount: dayExercises.length
+        type: 'evening_checkin',
+        day: dayName
       }
     },
-    trigger: {
-      type: 'date',
-      date: reflectionTime
-    }
+    trigger: reflectionTime
   });
-
-  console.log(`Evening reflection scheduled for ${reflectionHour}:${String(reflectionMin).padStart(2, '0')}`);
+  
+  console.log(`Evening reflection scheduled for ${reflectionHour}:${reflectionMin}`);
 };
 
 const updateWeeklyData = async (todayData) => {

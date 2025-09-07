@@ -1,49 +1,41 @@
-// app/welcome.js — Zivvy onboarding - UPDATED THEME VERSION
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Dimensions,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  Animated,
-} from 'react-native';
+// app/welcome.js — Zivvy onboarding - COMPLETE WORKING VERSION
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabaseClient';
 import LottieView from 'lottie-react-native';
-import * as Font from 'expo-font';
-import { useFonts } from 'expo-font';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import SuccessModal from '../components/SuccessModal';
+import { supabase } from './supabaseClient';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-/* ------------------------------ Brand tokens - UPDATED THEME ------------------------------ */
+/* ------------------------------ Brand tokens ------------------------------ */
 const APP_NAME = 'Zivvy';
-
-// New theme colors
-const BACKGROUND_GRADIENT = ['#faf8f5', '#e5d9cc'];  // Very pronounced warm gradient for visibility
-const PRIMARY_PURPLE = '#6b5b95';  // Main purple accent
-const SAGE_GREEN = '#87a08e';      // Secondary sage green
-const WARM_TAN = '#d4a574';        // Accent warm tan
-
-// Text colors derived from theme
-const TEXT_DARK = '#3a3548';       // Darker version of purple for text
-const TEXT_MID = 'rgba(107, 91, 149, 0.7)';  // Purple with opacity
-const TEXT_SOFT = 'rgba(107, 91, 149, 0.55)'; // Softer purple
-
-// UI elements
+const BACKGROUND_GRADIENT = ['#faf8f5', '#e5d9cc'];
+const PRIMARY_PURPLE = '#6b5b95';
+const SAGE_GREEN = '#87a08e';
+const WARM_TAN = '#d4a574';
+const TEXT_DARK = '#3a3548';
+const TEXT_MID = 'rgba(107, 91, 149, 0.7)';
+const TEXT_SOFT = 'rgba(107, 91, 149, 0.55)';
 const CARD_BG = 'rgba(255, 255, 255, 0.85)';
 const CARD_BORDER = 'rgba(107, 91, 149, 0.15)';
-const FLOW_GRADIENT = ['#faf8f5', '#e5d9cc'];  // Same as background for consistency
+const FLOW_GRADIENT = ['#faf8f5', '#e5d9cc'];
 
 /* -------------------------------- Slide 1 --------------------------------- */
-
 const Slide1 = ({ scrollToSlide }) => {
   const floatAnim = useRef(new Animated.Value(0)).current;
   
@@ -73,7 +65,6 @@ const Slide1 = ({ scrollToSlide }) => {
         style={styles.gradientBackground}
       >
         <View style={styles.heroWrapper}>
-          {/* Soft rounded square container */}
           <Animated.View 
             style={[
               styles.squircleContainer,
@@ -95,7 +86,6 @@ const Slide1 = ({ scrollToSlide }) => {
             </LinearGradient>
           </Animated.View>
 
-          {/* Text content */}
           <View style={styles.textGroup}>
             <Text style={styles.brandTitle}>Zivvy</Text>
             <Text style={styles.mainTagline}>
@@ -107,7 +97,6 @@ const Slide1 = ({ scrollToSlide }) => {
           </View>
         </View>
 
-        {/* CTA Button */}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => scrollToSlide(1)}
@@ -135,7 +124,6 @@ const Slide1 = ({ scrollToSlide }) => {
 };
 
 /* -------------------------------- Slide 2 --------------------------------- */
-
 const Slide2 = ({ scrollToSlide }) => (
   <View style={styles.slide}>
     <LinearGradient 
@@ -154,19 +142,19 @@ const Slide2 = ({ scrollToSlide }) => (
               title: 'You Lead', 
               desc: 'Guide your child\'s progress with confidence', 
               icon: '👨‍👩‍👧',
-              color: 'rgba(107, 91, 149, 0.15)'  // Purple tint
+              color: 'rgba(107, 91, 149, 0.15)'
             },
             { 
               title: 'Smart Schedule', 
               desc: 'Fits perfectly around your daily routine', 
               icon: '📅',
-              color: 'rgba(135, 160, 142, 0.15)'  // Sage green tint
+              color: 'rgba(135, 160, 142, 0.15)'
             },
             { 
               title: 'Watch Them Grow', 
               desc: 'Celebrate small wins that add up big', 
               icon: '✨',
-              color: 'rgba(212, 165, 116, 0.15)'  // Warm tan tint
+              color: 'rgba(212, 165, 116, 0.15)'
             },
           ].map((step, i) => (
             <View key={`step-${i}`} style={styles.stepCard}>
@@ -204,8 +192,7 @@ const Slide2 = ({ scrollToSlide }) => (
 );
 
 /* -------------------------------- Slide 3 --------------------------------- */
-
-const Slide3 = ({ authMode, formData, setFormData, loading, handleSignIn, handleSignUp, setAuthMode }) => {
+const Slide3 = ({ authMode, formData, setFormData, loading, handleSignIn, handleSignUp, setAuthMode, errors, setErrors }) => {
   if (!formData) return <View style={styles.slide}><Text>Loading…</Text></View>;
 
   const isSignIn = authMode === 'signin';
@@ -223,7 +210,6 @@ const Slide3 = ({ authMode, formData, setFormData, loading, handleSignIn, handle
           style={styles.authScrollView}
           contentContainerStyle={styles.authScrollContent}
         >
-          {/* Logo/Brand at top */}
           <View style={styles.authLogoContainer}>
             <View style={styles.smallSquircle}>
               <LottieView
@@ -235,66 +221,137 @@ const Slide3 = ({ authMode, formData, setFormData, loading, handleSignIn, handle
             </View>
           </View>
 
-          {/* Auth Header */}
           <View style={styles.authHeader}>
             <Text style={styles.authTitle}>
-              {isSignIn ? 'Welcome Back' : 'Join Zivvy'}
+              {isSignIn ? 'Welcome to Zivvy' : 'Join Zivvy'}
             </Text>
             <Text style={styles.authSubtitle}>
               {isSignIn
-                ? 'Continue your parenting journey'
+                ? 'Sign in to continue your journey'
                 : 'Start building better routines today'}
             </Text>
           </View>
 
-          {/* Form Container */}
           <View style={styles.authFormContainer}>
-            <TextInput
-              style={styles.inputField}
-              placeholder="Email"
-              placeholderTextColor="rgba(107, 91, 149, 0.4)"
-              value={formData.email}
-              onChangeText={(t) => setFormData({ ...formData, email: t })}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <TextInput
-              style={styles.inputField}
-              placeholder="Password"
-              placeholderTextColor="rgba(107, 91, 149, 0.4)"
-              value={formData.password}
-              onChangeText={(t) => setFormData({ ...formData, password: t })}
-              secureTextEntry
-            />
-
+            {/* Name field FIRST for Sign Up */}
             {!isSignIn && (
               <>
                 <TextInput
-                  style={styles.inputField}
-                  placeholder="Your Name"
+                  style={[styles.inputField, errors.parentName && styles.inputFieldError]}
+                  placeholder="Your Name *"
                   placeholderTextColor="rgba(107, 91, 149, 0.4)"
                   value={formData.parentName}
-                  onChangeText={(t) => setFormData({ ...formData, parentName: t })}
+                  onChangeText={(t) => {
+                    setFormData({ ...formData, parentName: t });
+                    setErrors({ ...errors, parentName: null });
+                  }}
+                  autoCapitalize="words"
                 />
-
-                <TouchableOpacity
-                  style={styles.termsContainer}
-                  onPress={() => setFormData({ ...formData, agreedToTerms: !formData.agreedToTerms })}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.checkboxNew, formData.agreedToTerms && styles.checkboxChecked]}>
-                    {formData.agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.termsTextNew}>
-                    I agree to the Terms of Service and Privacy Policy
-                  </Text>
-                </TouchableOpacity>
+                {errors.parentName && (
+                  <Text style={styles.errorText}>{errors.parentName}</Text>
+                )}
               </>
+            )}
+
+            <TextInput
+              style={[styles.inputField, errors.email && styles.inputFieldError]}
+              placeholder={isSignIn ? "Email" : "Email *"}
+              placeholderTextColor="rgba(107, 91, 149, 0.4)"
+              value={formData.email}
+              onChangeText={(t) => {
+                setFormData({ ...formData, email: t });
+                setErrors({ ...errors, email: null });
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            )}
+
+            <TextInput
+              style={[styles.inputField, errors.password && styles.inputFieldError]}
+              placeholder={isSignIn ? "Password" : "Password * (min 6 characters)"}
+              placeholderTextColor="rgba(107, 91, 149, 0.4)"
+              value={formData.password}
+              onChangeText={(t) => {
+                setFormData({ ...formData, password: t });
+                setErrors({ ...errors, password: null });
+              }}
+              secureTextEntry
+            />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            )}
+
+            {/* Forgot Password - only show on Sign In */}
+            {isSignIn && (
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() => {
+                  if (!formData.email) {
+                    setErrors({ email: 'Please enter your email address first' });
+                    return;
+                  }
+                  
+                  // Show custom modal instead of Alert
+                  setSuccessModal({
+                    visible: true,
+                    title: 'Reset Password?',
+                    message: `We'll send password reset instructions to ${formData.email}`,
+                    buttonText: 'Send Reset Link',
+                    onClose: async () => {
+                      setSuccessModal(prev => ({ ...prev, visible: false }));
+                      
+                      const { error } = await supabase.auth.resetPasswordForEmail(
+                        formData.email.toLowerCase().trim(),
+                        {
+                          redirectTo: 'zivvy://reset-password',
+                        }
+                      );
+                      
+                      if (!error) {
+                        // Show success message
+                        setTimeout(() => {
+                          setSuccessModal({
+                            visible: true,
+                            title: 'Check Your Email 📧',
+                            message: 'We sent you a password reset link. Click the link in the email to reset your password.',
+                            buttonText: 'OK',
+                            onClose: () => {
+                              setSuccessModal(prev => ({ ...prev, visible: false }));
+                            }
+                          });
+                        }, 300);
+                      } else {
+                        // Show error inline instead of Alert
+                        setErrors({ email: error.message });
+                      }
+                    }
+                  });
+                }}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Terms checkbox - only show on Sign Up */}
+            {!isSignIn && (
+              <TouchableOpacity 
+                style={styles.termsContainer}
+                onPress={() => setFormData({ ...formData, agreedToTerms: !formData.agreedToTerms })}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkboxNew, formData.agreedToTerms && styles.checkboxChecked]}>
+                  {formData.agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.termsTextNew}>
+                  I agree to the Terms of Service and Privacy Policy
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
-          {/* Submit Button */}
           <TouchableOpacity
             style={[styles.authButton, loading && { opacity: 0.7 }]}
             onPress={isSignIn ? handleSignIn : handleSignUp}
@@ -322,7 +379,6 @@ const Slide3 = ({ authMode, formData, setFormData, loading, handleSignIn, handle
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Switch Auth Mode */}
           <TouchableOpacity
             onPress={() => setAuthMode(isSignIn ? 'signup' : 'signin')}
             style={styles.switchContainer}
@@ -347,10 +403,16 @@ export default function WelcomeScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [authMode, setAuthMode] = useState('signin');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [successModal, setSuccessModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    buttonText: 'Continue',
+    onClose: () => {}
+  });
 
-  // Load custom fonts
   const [fontsLoaded] = useFonts({
-    // Loading multiple font options
     "Poppins-Bold": require('../assets/fonts/Poppins-Bold.ttf'),
     "Poppins-SemiBold": require('../assets/fonts/Poppins-SemiBold.ttf'),
     "Poppins-Medium": require('../assets/fonts/Poppins-Medium.ttf'),
@@ -364,7 +426,6 @@ export default function WelcomeScreen() {
     agreedToTerms: false,
   });
 
-  // Check fonts loaded AFTER all hooks are declared
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#faf8f5' }}>
@@ -384,10 +445,22 @@ export default function WelcomeScreen() {
   };
 
   const handleSignIn = async () => {
-    if (!formData.email || !formData.password) {
-      Alert.alert('Missing Info', 'Please enter email and password');
+    const signInErrors = {};
+    
+    if (!formData.email) {
+      signInErrors.email = 'Email is required';
+    }
+    if (!formData.password) {
+      signInErrors.password = 'Password is required';
+    }
+    
+    if (Object.keys(signInErrors).length > 0) {
+      setErrors(signInErrors);
       return;
     }
+    
+    setErrors({});
+    
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({
       email: formData.email.toLowerCase().trim(),
@@ -396,29 +469,101 @@ export default function WelcomeScreen() {
     setLoading(false);
 
     if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        Alert.alert(
+          'Sign In Failed', 
+          'Incorrect email or password. Please try again.',
+          [
+            { text: 'Try Again', style: 'default' },
+            { 
+              text: 'Reset Password', 
+              onPress: async () => {
+                const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+                  formData.email.toLowerCase().trim()
+                );
+                if (!resetError) {
+                  Alert.alert(
+                    'Password Reset Sent',
+                    'Check your email for reset instructions.'
+                  );
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      if (error.message.includes('Email not confirmed')) {
+        Alert.alert(
+          'Email Not Verified',
+          'Please check your email and verify your account first.',
+          [
+            { text: 'OK', style: 'default' },
+            {
+              text: 'Resend Email',
+              onPress: async () => {
+                const { error: resendError } = await supabase.auth.resend({
+                  type: 'signup',
+                  email: formData.email.toLowerCase().trim(),
+                });
+                if (!resendError) {
+                  Alert.alert('Email Sent', 'Verification email has been resent.');
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
       Alert.alert('Sign In Failed', error.message);
       return;
     }
+    
     if (data.user) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single();
+      
       await AsyncStorage.setItem('userEmail', data.user.email);
-      await supabase.from('user_profiles').select('*').eq('user_id', data.user.id).single();
+      if (profile?.parent_name) {
+        await AsyncStorage.setItem('userName', profile.parent_name);
+      }
+      
       router.replace('/calendar-form');
     }
   };
 
   const handleSignUp = async () => {
+    const newErrors = {};
+    
+    if (!formData.parentName) {
+      newErrors.parentName = 'Name is required';
+    }
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
     if (!formData.agreedToTerms) {
-      Alert.alert('Terms Required', 'Please agree to the Terms of Service');
+      newErrors.terms = 'Please agree to the Terms of Service';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      if (newErrors.terms) {
+        Alert.alert('Terms Required', newErrors.terms);
+      }
       return;
     }
-    if (!formData.email || !formData.password || !formData.parentName) {
-      Alert.alert('Missing Info', 'Please fill all fields');
-      return;
-    }
-    if (formData.password.length < 6) {
-      Alert.alert('Weak Password', 'Password must be at least 6 characters');
-      return;
-    }
+    
+    setErrors({});
 
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
@@ -435,6 +580,45 @@ export default function WelcomeScreen() {
     setLoading(false);
 
     if (error) {
+      if (error.message.includes('User already registered')) {
+        Alert.alert(
+          'Account Already Exists',
+          `An account with ${formData.email} already exists. Would you like to sign in instead?`,
+          [
+            {
+              text: 'Sign In',
+              onPress: () => {
+                setAuthMode('signin');
+                setFormData({...formData, password: ''});
+              }
+            },
+            {
+              text: 'Reset Password',
+              onPress: async () => {
+                const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+                  formData.email.toLowerCase().trim()
+                );
+                
+                if (!resetError) {
+                  Alert.alert(
+                    'Password Reset Email Sent',
+                    'Check your email for instructions to reset your password.',
+                    [{ text: 'OK', onPress: () => setAuthMode('signin') }]
+                  );
+                } else {
+                  Alert.alert('Error', resetError.message);
+                }
+              }
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+        return;
+      }
+      
       Alert.alert('Sign Up Failed', error.message);
       return;
     }
@@ -450,11 +634,17 @@ export default function WelcomeScreen() {
       await AsyncStorage.setItem('userEmail', data.user.email);
       await AsyncStorage.setItem('userName', formData.parentName);
 
-      Alert.alert(
-        `Welcome to ${APP_NAME}!`,
-        'Please check your email to verify your account, then sign in.',
-        [{ text: 'OK', onPress: () => setAuthMode('signin') }]
-      );
+      // Show success modal instead of Alert
+      setSuccessModal({
+        visible: true,
+        title: 'Welcome to Zivvy! 🎉',
+        message: 'Your account is ready! Please check your email to verify your account.',
+        buttonText: 'Start Using Zivvy',
+        onClose: () => {
+          setSuccessModal(prev => ({ ...prev, visible: false }));
+          router.replace('/calendar-form');
+        }
+      });
     }
   };
 
@@ -478,10 +668,11 @@ export default function WelcomeScreen() {
           handleSignIn={handleSignIn}
           handleSignUp={handleSignUp}
           setAuthMode={setAuthMode}
+          errors={errors}
+          setErrors={setErrors}
         />
       </ScrollView>
 
-      {/* Pagination dots */}
       <View style={styles.dotsWrap}>
         {[0, 1, 2].map((i) => (
           <View
@@ -490,6 +681,15 @@ export default function WelcomeScreen() {
           />
         ))}
       </View>
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={successModal.visible}
+        title={successModal.title}
+        message={successModal.message}
+        buttonText={successModal.buttonText}
+        onClose={successModal.onClose}
+      />
     </View>
   );
 }
@@ -512,11 +712,10 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#f5efea', // Warm beige as fallback
+    backgroundColor: '#f5efea',
   },
 
   /* ========== Slide 1 Styles ========== */
-
   squircleContainer: {
     marginBottom: 40,
     shadowColor: PRIMARY_PURPLE,
@@ -533,7 +732,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(135, 160, 142, 0.3)',  // Sage green border
+    borderColor: 'rgba(135, 160, 142, 0.3)',
   },
 
   lottieInSquircle: {
@@ -548,81 +747,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  heartContainer: {
-    width: 200,
-    height: 180,
-    marginBottom: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  heartShape: {
-    position: 'absolute',
-    width: 200,
-    height: 180,
-  },
-  
-  heartLeft: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 50,
-    top: 0,
-    left: 25,
-    transform: [{ rotate: '-45deg' }],
-    shadowColor: PRIMARY_PURPLE,
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-  },
-  
-  heartRight: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 50,
-    top: 0,
-    right: 25,
-    transform: [{ rotate: '45deg' }],
-    shadowColor: PRIMARY_PURPLE,
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-  },
-  
-  heartBottom: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    transform: [{ rotate: '45deg' }],
-    bottom: 10,
-    left: 50,
-  },
-  
-  lottieInHeart: {
-    width: 140,
-    height: 140,
-    position: 'absolute',
-    zIndex: 1,
-  },
-
-  lottieDirectContainer: {
-    marginBottom: 40,
-    shadowColor: PRIMARY_PURPLE,
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
-  },
-  
-  lottieDirect: {
-    width: 160,
-    height: 160,
-  },
-  
   textGroup: {
     alignItems: 'center',
     paddingHorizontal: 32,
@@ -638,8 +762,8 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(107, 91, 149, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
-    lineHeight: 54, // Added to give more vertical space
-    paddingVertical: 4, // Added padding to prevent cutoff
+    lineHeight: 54,
+    paddingVertical: 4,
   },
 
   mainTagline: {
@@ -651,7 +775,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: -0.5,
     paddingHorizontal: 20,
-    fontFamily: 'Poppins-SemiBold',  // Add font for consistency
+    fontFamily: 'Poppins-SemiBold',
   },
   
   subTagline: {
@@ -659,7 +783,7 @@ const styles = StyleSheet.create({
     color: TEXT_MID,
     textAlign: 'center',
     lineHeight: 22,
-    fontFamily: 'Poppins-Medium',  // Add font for consistency
+    fontFamily: 'Poppins-Medium',
   },
   
   ctaWrapper: {
@@ -712,7 +836,6 @@ const styles = StyleSheet.create({
   },
 
   /* ========== Slide 2 Styles ========== */
-
   slide2Content: {
     flex: 1,
     width: '100%',
@@ -723,10 +846,10 @@ const styles = StyleSheet.create({
   slideTitle: {
     fontSize: 32,
     fontWeight: '700',
-    color: PRIMARY_PURPLE,  // Changed from TEXT_DARK to purple
+    color: PRIMARY_PURPLE,
     textAlign: 'center',
     marginBottom: 8,
-    fontFamily: 'Quicksand',  // Match the brand font
+    fontFamily: 'Quicksand',
   },
   
   slide2Subtitle: {
@@ -734,7 +857,7 @@ const styles = StyleSheet.create({
     color: TEXT_MID,
     textAlign: 'center',
     marginBottom: 40,
-    fontFamily: 'Poppins-Medium',  // Readable body font
+    fontFamily: 'Poppins-Medium',
   },
   
   stepsContainer: { 
@@ -773,66 +896,16 @@ const styles = StyleSheet.create({
   stepTitle: { 
     fontSize: 18, 
     fontWeight: '600', 
-    color: PRIMARY_PURPLE,  // Changed to purple
+    color: PRIMARY_PURPLE,
     marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',  // Consistent font
+    fontFamily: 'Poppins-SemiBold',
   },
   
   stepDesc: { 
     fontSize: 14, 
     color: TEXT_MID,
     lineHeight: 20,
-    fontFamily: 'Poppins-Medium',  // Readable body font
-  },
-
-  card: {
-    width: '100%',
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 24,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-  },
-  
-  cardTitle: { 
-    fontSize: 20, 
-    fontWeight: '800', 
-    color: TEXT_DARK, 
-    marginBottom: 6, 
-    textAlign: 'center' 
-  },
-  
-  cardDesc: { 
-    fontSize: 15, 
-    color: TEXT_MID, 
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-
-  ctaButton: {
-    backgroundColor: PRIMARY_PURPLE,
-    paddingVertical: 16,
-    paddingHorizontal: 64,
-    borderRadius: 999,
-    alignSelf: 'center',
-    shadowColor: PRIMARY_PURPLE,
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-  },
-  
-  ctaButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontFamily: 'Poppins-Medium',
   },
 
   /* ========== Slide 3 Styles ========== */
@@ -859,7 +932,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: 'rgba(250, 248, 245, 0.9)',
     borderWidth: 2,
-    borderColor: 'rgba(135, 160, 142, 0.3)',  // Sage green border
+    borderColor: 'rgba(135, 160, 142, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -878,10 +951,10 @@ const styles = StyleSheet.create({
   authTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: PRIMARY_PURPLE,  // Changed to purple
+    color: PRIMARY_PURPLE,
     marginBottom: 8,
     textAlign: 'center',
-    fontFamily: 'Quicksand',  // Match brand font
+    fontFamily: 'Quicksand',
   },
 
   authSubtitle: { 
@@ -889,7 +962,7 @@ const styles = StyleSheet.create({
     color: TEXT_MID,
     lineHeight: 22,
     textAlign: 'center',
-    fontFamily: 'Poppins-Medium',  // Readable body font
+    fontFamily: 'Poppins-Medium',
   },
 
   authFormContainer: { 
@@ -905,66 +978,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: TEXT_DARK,
     borderWidth: 1,
-    borderColor: 'rgba(107, 91, 149, 0.2)',  // Purple tinted border
+    borderColor: 'rgba(107, 91, 149, 0.2)',
     marginBottom: 14,
-    fontFamily: 'Poppins-Medium',  // Better readability
+    fontFamily: 'Poppins-Medium',
   },
 
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: TEXT_DARK,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    marginBottom: 14,
+  inputFieldError: {
+    borderColor: '#d4a574',
+    borderWidth: 2,
   },
 
-  authForm: { 
-    width: '100%',
+  errorText: {
+    color: '#d4a574',
+    fontSize: 12,
+    marginTop: -10,
+    marginBottom: 10,
+    marginLeft: 12,
+    fontFamily: 'Poppins-Medium',
   },
 
-  termsRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginTop: 8, 
-    marginBottom: 20,
+  forgotPasswordButton: {
+    alignSelf: 'center',
+    marginTop: -8,
+    marginBottom: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  
-  checkbox: {
-    width: 22, 
-    height: 22, 
-    borderRadius: 6,
-    borderWidth: 2, 
-    borderColor: TEXT_DARK, 
-    marginRight: 10, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  
-  checkboxChecked: { 
-    backgroundColor: PRIMARY_PURPLE, 
-    borderColor: PRIMARY_PURPLE,
-  },
-  
-  checkmark: { 
-    color: '#FFFFFF', 
-    fontWeight: '800',
+
+  forgotPasswordText: {
+    color: PRIMARY_PURPLE,
     fontSize: 14,
-  },
-  
-  termsText: { 
-    color: TEXT_MID, 
-    fontSize: 14, 
-    flex: 1,
-    lineHeight: 20,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    fontFamily: 'Poppins-Medium',
   },
 
   termsContainer: { 
@@ -980,16 +1026,16 @@ const styles = StyleSheet.create({
     height: 24, 
     borderRadius: 8,
     borderWidth: 2, 
-    borderColor: 'rgba(107, 91, 149, 0.4)', 
+    borderColor: '#6b5b95',
     marginRight: 12, 
     alignItems: 'center', 
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
 
   checkboxChecked: { 
-    backgroundColor: PRIMARY_PURPLE, 
-    borderColor: PRIMARY_PURPLE,
+    backgroundColor: '#6b5b95',
+    borderColor: '#6b5b95',
   },
 
   checkmark: { 
@@ -1003,6 +1049,7 @@ const styles = StyleSheet.create({
     fontSize: 14, 
     flex: 1,
     lineHeight: 20,
+    fontFamily: 'Poppins-Medium',
   },
 
   authButton: {
@@ -1060,12 +1107,6 @@ const styles = StyleSheet.create({
   switchTextBold: {
     color: PRIMARY_PURPLE,
     fontWeight: '700',
-  },
-
-  switchAuthText: { 
-    color: TEXT_MID, 
-    fontSize: 15,
-    textAlign: 'center',
   },
 
   /* ========== Pagination ========== */

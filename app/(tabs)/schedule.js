@@ -1,24 +1,19 @@
 // app/schedule-view.js
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  TouchableOpacity,
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
   ActivityIndicator,
   Modal,
-  Alert 
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../supabaseClient';
-import { ScheduleOptimizer } from '../components/ScheduleOptimizer';
-import { ExportSchedule } from '../components/ExportSchedule';
-import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
-import { scheduleTomorrowOnly } from '../utils/notificationHandler';
 
 
 export default function ScheduleView() {
@@ -28,12 +23,17 @@ export default function ScheduleView() {
   const [scheduleData, setScheduleData] = useState(null);
   const [childName, setChildName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState('Monday');
   const [formData, setFormData] = useState(null);
 const [dismissedExplanation, setDismissedExplanation] = useState(false);
   const [conflicts, setConflicts] = useState({});
   const [explanations, setExplanations] = useState({});
     const [showInsights, setShowInsights] = useState(false);
+
+    const [selectedDay, setSelectedDay] = useState(() => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = new Date().getDay();
+  return days[today];
+});
 
   useEffect(() => {
     loadScheduleData();
@@ -42,39 +42,7 @@ const [dismissedExplanation, setDismissedExplanation] = useState(false);
 
 // Add this new useEffect after your existing loadScheduleData useEffect
 // Add this new useEffect after your existing loadScheduleData useEffect
-useEffect(() => {
-  const setupDailyRefresh = () => {
-    const now = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 1, 0, 0); // 12:01 AM tomorrow
-    
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    
-    const refreshNotifications = async () => {
-      const savedData = await AsyncStorage.getItem('therapyFormData');
-      if (savedData) {
-        const formData = JSON.parse(savedData);
-        if (formData.remindersEnabled && formData.dailySchedule) {
-          console.log('Auto-refreshing notifications at midnight');
-          await scheduleTomorrowOnly(formData.dailySchedule, formData);
-        }
-      }
-    };
-    
-    // Schedule first refresh at midnight
-    const midnightTimer = setTimeout(() => {
-      refreshNotifications();
-      // Then set up daily interval
-      const dailyInterval = setInterval(refreshNotifications, 24 * 60 * 60 * 1000);
-      return () => clearInterval(dailyInterval);
-    }, timeUntilMidnight);
-    
-    return () => clearTimeout(midnightTimer);
-  };
-  
-  setupDailyRefresh();
-}, []);
+
 
 
 
@@ -155,6 +123,37 @@ useEffect(() => {
   };
   
   checkNotifications();
+}, []);
+
+
+// Auto-scroll to today's day button
+const scrollViewRef = useRef(null);
+
+useEffect(() => {
+  // Auto-scroll to today's button when component mounts
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const todayIndex = days.indexOf(selectedDay);
+  
+  if (scrollViewRef.current && todayIndex !== -1) {
+    setTimeout(() => {
+      scrollViewRef.current.scrollTo({
+        x: todayIndex * 100, // Approximate width of each day button
+        animated: true
+      });
+    }, 100);
+  }
+}, []);
+
+useEffect(() => {
+  // Handle notification responses
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    // When user taps notification, show today's schedule
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = new Date().getDay();
+    setSelectedDay(days[today]);
+  });
+  
+  return () => subscription.remove();
 }, []);
 
 const getBusiestDay = () => {
@@ -445,44 +444,57 @@ const generateDynamicInsights = () => {
 
 
 
-      <ScrollView 
+      <ScrollView   ref={scrollViewRef}  
         horizontal 
         showsHorizontalScrollIndicator={false}
         style={styles.daySelector}
       >
-        {days.map(day => {
-          const hasConflicts = conflicts[day]?.length > 0;
-          const exerciseCount = scheduleData[day]?.length || 0;
-          
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[
-                styles.dayButton,
-                selectedDay === day && styles.dayButtonActive
-              ]}
-onPress={() => {
-  setSelectedDay(day);
-  setDismissedExplanation(false); // Reset when changing days
-}}            >
-              <Text style={[
-                styles.dayButtonText,
-                selectedDay === day && styles.dayButtonTextActive
-              ]}>
-                {day.slice(0, 3)}
-              </Text>
-              <Text style={[
-                styles.exerciseCount,
-                selectedDay === day && styles.exerciseCountActive
-              ]}>
-                {exerciseCount} × 15min
-              </Text>
-              {hasConflicts && (
-                <View style={styles.conflictIndicator} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+      
+      {days.map(day => {
+  const hasConflicts = conflicts[day]?.length > 0;
+  const exerciseCount = scheduleData[day]?.length || 0;
+  
+  // Check if this is today
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = new Date().getDay();
+  const isToday = day === daysOfWeek[today];
+  
+  return (
+    <TouchableOpacity
+      key={day}
+      style={[
+        styles.dayButton,
+        selectedDay === day && styles.dayButtonActive,
+        isToday && styles.dayButtonToday  // ADD THIS
+      ]}
+      onPress={() => {
+        setSelectedDay(day);
+        setDismissedExplanation(false);
+      }}
+    >
+      {isToday && (
+        <View style={styles.todayBadge}>
+          <Text style={styles.todayBadgeText}>TODAY</Text>
+        </View>
+      )}
+      <Text style={[
+        styles.dayButtonText,
+        selectedDay === day && styles.dayButtonTextActive
+      ]}>
+        {day.slice(0, 3)}
+      </Text>
+      <Text style={[
+        styles.exerciseCount,
+        selectedDay === day && styles.exerciseCountActive
+      ]}>
+        {exerciseCount} × 15min
+      </Text>
+      {hasConflicts && (
+        <View style={styles.conflictIndicator} />
+      )}
+    </TouchableOpacity>
+  );
+})}
 
       </ScrollView>
 
@@ -680,6 +692,7 @@ onPress={() => {
         <TouchableOpacity onPress={() => setShowInsights(false)}>
           <Ionicons name="close-circle" size={28} color="#6b5b95" />
         </TouchableOpacity>
+       
       </View>
       
       <ScrollView showsVerticalScrollIndicator={false} style={{flex: 1}}>
@@ -1209,4 +1222,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
+  dayButtonToday: {
+  borderColor: '#87a08e',
+  borderWidth: 2.5,
+},
+
+todayBadge: {
+  position: 'absolute',
+  top: -8,
+  backgroundColor: '#87a08e',
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  borderRadius: 8,
+},
+
+todayBadgeText: {
+  fontSize: 9,
+  color: 'white',
+  fontWeight: '700',
+  letterSpacing: 0.5,
+},
+
 });
